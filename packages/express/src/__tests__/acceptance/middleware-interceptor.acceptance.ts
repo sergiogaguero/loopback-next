@@ -144,10 +144,10 @@ describe('Middleware interceptor', () => {
           {
             global: true,
             injectConfiguration: false,
-            key: 'interceptors.middleware.spy',
+            key: 'globalInterceptors.middleware.spy',
           },
         );
-        expect(binding.key).to.eql('interceptors.middleware.spy');
+        expect(binding.key).to.eql('globalInterceptors.middleware.spy');
         return testFn(binding);
       });
 
@@ -163,7 +163,9 @@ describe('Middleware interceptor', () => {
             injectConfiguration: false,
           },
         );
-        expect(binding.key).to.eql('interceptors.middleware.namedSpyFactory');
+        expect(binding.key).to.eql(
+          'globalInterceptors.middleware.namedSpyFactory',
+        );
         return testFn(binding);
       });
 
@@ -177,7 +179,7 @@ describe('Middleware interceptor', () => {
             injectConfiguration: false,
           },
         );
-        expect(binding.key).to.match(/^interceptors\.middleware\./);
+        expect(binding.key).to.match(/^globalInterceptors\.middleware\./);
         return testFn(binding);
       });
 
@@ -192,7 +194,9 @@ describe('Middleware interceptor', () => {
         const binding = createMiddlewareInterceptorBinding(
           SpyInterceptorProvider,
         );
-        expect(binding.key).to.eql('interceptors.SpyInterceptorProvider');
+        expect(binding.key).to.eql(
+          'globalInterceptors.middleware.SpyInterceptorProvider',
+        );
         helper.app.add(binding);
         return testFn(binding);
       });

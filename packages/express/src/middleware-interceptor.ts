@@ -21,13 +21,17 @@ import {
   InvocationContext,
   NamespacedReflect,
   Provider,
-  transformValueOrPromise,
 } from '@loopback/core';
 import assert from 'assert';
 import debugFactory from 'debug';
 import onFinished from 'on-finished';
 import {promisify} from 'util';
-import {MiddlewareBindings} from './keys';
+import {
+  DEFAULT_MIDDLEWARE_GROUP,
+  GLOBAL_MIDDLEWARE_INTERCEPTOR_NAMESPACE,
+  MiddlewareBindings,
+  MIDDLEWARE_INTERCEPTOR_NAMESPACE,
+} from './keys';
 import {
   ExpressMiddlewareFactory,
   ExpressRequestHandler,
@@ -102,17 +106,11 @@ export function toInterceptor<CTX extends Context = InvocationContext>(
   const handlers = [firstHandler, ...additionalHandlers];
   const interceptorList = handlers.map(handler => toInterceptor<CTX>(handler));
   return async (invocationCtx, next) => {
-    const middlewareCtx = await invocationCtx.get<MiddlewareContext>(
-      MiddlewareBindings.CONTEXT,
-    );
     const middlewareChain = new GenericInterceptorChain(
       invocationCtx,
       interceptorList,
     );
-    const result = middlewareChain.invokeInterceptors();
-    return transformValueOrPromise(result, val =>
-      val === middlewareCtx.response ? val : next(),
-    );
+    return middlewareChain.invokeInterceptors(next);
   };
 }
 
@@ -362,16 +360,17 @@ export function registerExpressMiddlewareInterceptor<CFG>(
   options = {
     injectConfiguration: true,
     global: true,
-    group: 'middleware',
+    group: DEFAULT_MIDDLEWARE_GROUP,
     ...options,
   };
   if (!options.injectConfiguration) {
     let key = options.key;
     if (!key) {
       const name = buildName(middlewareFactory);
-      key = name
-        ? `interceptors.middleware.${name}`
-        : BindingKey.generate('interceptors.middleware');
+      const namespace = options.global
+        ? GLOBAL_MIDDLEWARE_INTERCEPTOR_NAMESPACE
+        : MIDDLEWARE_INTERCEPTOR_NAMESPACE;
+      key = name ? `${namespace}.${name}` : BindingKey.generate(namespace);
     }
     const binding = ctx
       .bind(key!)
@@ -412,9 +411,12 @@ export function createMiddlewareInterceptorBinding<CFG>(
     group: 'middleware',
     ...options,
   };
+  const namespace = options.global
+    ? GLOBAL_MIDDLEWARE_INTERCEPTOR_NAMESPACE
+    : MIDDLEWARE_INTERCEPTOR_NAMESPACE;
   const binding = createBindingFromClass(middlewareProviderClass, {
     defaultScope: BindingScope.SINGLETON,
-    namespace: 'interceptors',
+    namespace,
   });
   if (options.global) {
     binding.tag({[ContextTags.GLOBAL_INTERCEPTOR_SOURCE]: 'route'});

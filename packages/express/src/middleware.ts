@@ -20,8 +20,8 @@ import {
 } from '@loopback/context';
 import {extensionFilter, extensionFor} from '@loopback/core';
 import debugFactory from 'debug';
+import {MIDDLEWARE_NAMESPACE} from './keys';
 import {
-  buildName,
   createInterceptor,
   defineInterceptorProvider,
   toInterceptor,
@@ -67,10 +67,7 @@ export function toMiddleware(
       return middlewareList[0](middlewareCtx, next);
     }
     const middlewareChain = new MiddlewareChain(middlewareCtx, middlewareList);
-    const result = middlewareChain.invokeInterceptors();
-    return transformValueOrPromise(result, val =>
-      val === middlewareCtx.response ? val : next(),
-    );
+    return middlewareChain.invokeInterceptors(next);
   };
 }
 
@@ -112,11 +109,6 @@ export function registerExpressMiddleware<CFG>(
   options = {injectConfiguration: true, ...options};
   options.chain = options.chain ?? DEFAULT_MIDDLEWARE_CHAIN;
   if (!options.injectConfiguration) {
-    let key = options.key;
-    if (!key) {
-      const name = buildName(middlewareFactory);
-      key = name ? `interceptors.${name}` : BindingKey.generate('interceptors');
-    }
     const middleware = createMiddleware(middlewareFactory, middlewareConfig);
     return registerMiddleware(ctx, middleware, options);
   }
@@ -162,7 +154,7 @@ export function registerMiddleware(
     ctx.add(binding);
     return binding;
   }
-  const key = options.key ?? BindingKey.generate('middleware');
+  const key = options.key ?? BindingKey.generate(MIDDLEWARE_NAMESPACE);
   return ctx
     .bind(key)
     .to(middleware as Middleware)
@@ -183,7 +175,7 @@ export function createMiddlewareBinding(
   options.chain = options.chain ?? DEFAULT_MIDDLEWARE_CHAIN;
   const binding = createBindingFromClass(middlewareProviderClass, {
     defaultScope: BindingScope.TRANSIENT,
-    namespace: 'middleware',
+    namespace: MIDDLEWARE_NAMESPACE,
     key: options.key,
   }).apply(asMiddleware(options));
   return binding;
