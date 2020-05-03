@@ -4,12 +4,19 @@
 // License text available at https://opensource.org/licenses/MIT
 
 import {
+  asGlobalInterceptor,
   Binding,
+  BindingAddress,
   BindingFromClassOptions,
+  BindingKey,
   BindingScope,
   Constructor,
   Context,
+  ContextTags,
   createBindingFromClass,
+  Interceptor,
+  InterceptorBindingOptions,
+  isProviderClass,
   JSONObject,
   Provider,
 } from '@loopback/context';
@@ -454,6 +461,54 @@ export class Application extends Context implements LifeCycleObserver {
     const options = toOptions(nameOrOptions);
     const binding = createServiceBinding(cls, options);
     this.add(binding);
+    return binding;
+  }
+
+  public interceptor(
+    interceptor: Interceptor | Constructor<Provider<Interceptor>>,
+    nameOrOptions?: string | InterceptorBindingOptions,
+  ) {
+    const options = toOptions(nameOrOptions);
+    let group = undefined;
+    let source = undefined;
+    let global = false;
+    let namespace = 'interceptors';
+    if (typeof nameOrOptions !== 'string') {
+      global = !!nameOrOptions?.global;
+      if (global) namespace = 'globalInterceptors';
+      group = nameOrOptions?.group;
+      source = nameOrOptions?.source;
+    }
+    let binding: Binding<Interceptor>;
+    if (isProviderClass(interceptor as Constructor<Provider<Interceptor>>)) {
+      binding = createBindingFromClass(
+        interceptor as Constructor<Provider<Interceptor>>,
+        {
+          ...options,
+        },
+      );
+      this.add(binding);
+    } else {
+      let key = options.key;
+      if (!key) {
+        const name = options.name ?? interceptor.name;
+        if (!name) {
+          key = BindingKey.generate<Interceptor>(namespace).key;
+        } else {
+          key = `${namespace}.${name}`;
+        }
+      }
+      binding = this.bind(key as BindingAddress<Interceptor>).to(
+        interceptor as Interceptor,
+      );
+    }
+    if (global) {
+      binding.apply(asGlobalInterceptor(group));
+      if (source) {
+        binding.tag({[ContextTags.GLOBAL_INTERCEPTOR_SOURCE]: source});
+      }
+    }
+
     return binding;
   }
 

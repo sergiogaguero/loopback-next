@@ -15,7 +15,7 @@ import assert from 'assert';
 import debugFactory from 'debug';
 import {Binding, BindingTemplate} from './binding';
 import {bind} from './binding-decorator';
-import {BindingSpec} from './binding-inspector';
+import {BindingFromClassOptions, BindingSpec} from './binding-inspector';
 import {sortBindingsByPhase} from './binding-sorter';
 import {Context} from './context';
 import {
@@ -344,4 +344,22 @@ export function invokeMethodWithInterceptors(
     },
     () => invocationCtx.close(),
   );
+}
+
+/**
+ * Options for an interceptor binding
+ */
+export interface InterceptorBindingOptions extends BindingFromClassOptions {
+  /**
+   * Global or local interceptor
+   */
+  global?: boolean;
+  /**
+   * Group name for a global interceptor
+   */
+  group?: string;
+  /**
+   * Source filter for a global interceptor
+   */
+  source?: string[];
 }
